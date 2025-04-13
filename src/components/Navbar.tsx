@@ -47,7 +47,7 @@ export default function Navbar() {
             {/* --- MODIFICATION START --- */}
              <Link to="/" className="flex-shrink-0 flex items-center gap-2" onClick={closeMenu}> {/* Added gap-2 */}
                 <img
-                  src="logo.png" // Assumes logo.png is in the /public folder
+                  src="/logo.png" // Assumes logo.png is in the /public folder
                   alt="ClassyCollectionHub Logo"
                   className="h-9 w-auto" // Adjusted height slightly
                 />
