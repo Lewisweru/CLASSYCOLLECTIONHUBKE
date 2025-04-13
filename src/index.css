@@ -1,3 +1,51 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer utilities {
+    .fade-in {
+      animation: fadeInAnimation ease 0.5s;
+      animation-iteration-count: 1;
+      animation-fill-mode: forwards;
+    }
+    @keyframes fadeInAnimation {
+      0% {
+          opacity: 0;
+          transform: translateY(10px);
+      }
+      100% {
+          opacity: 1;
+          transform: translateY(0);
+      }
+    }
+  }
+ 
+  @layer components {
+    .form-input {
+      @apply mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm;
+    }
+    .form-select {
+      @apply mt-1 block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-teal-500 focus:outline-none focus:ring-teal-500 sm:text-sm;
+    }
+    .form-textarea {
+      @apply mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm;
+    }
+    .form-checkbox {
+      @apply h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500;
+    }
+    .btn-click-effect {
+      @apply active:scale-95 transition-transform duration-100 ease-in-out;
+    }
+  }
+  
+  @layer components {
+    .nav-mobile-link {
+      @apply block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50;
+    }
+  }
+
+  @layer components {
+    .form-input { @apply mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm disabled:bg-gray-100; }
+    .form-select { @apply mt-1 block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-teal-500 focus:outline-none focus:ring-teal-500 sm:text-sm disabled:bg-gray-100; }
+    .form-error { @apply text-xs text-red-600 mt-1; }
+  }
