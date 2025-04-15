@@ -18,28 +18,32 @@ const adminApi = axios.create({
 // --- CORRECTED Request Interceptor ---
 adminApi.interceptors.request.use(
     (config) => {
-        // Ensure the final path starts with /api (relative to baseURL)
-        // Only add /api if the URL doesn't already start with it.
-        if (config.url && !config.url.startsWith('/api')) {
-             // Ensure we handle leading slash correctly if path is like 'admin/products' vs '/admin/products'
-            const path = config.url.startsWith('/') ? config.url : `/${config.url}`;
-            config.url = `/api${path}`;
+        let finalUrl = config.url || '';
+
+        // 1. Ensure URL starts with a slash if it's not empty
+        if (finalUrl && !finalUrl.startsWith('/')) {
+            finalUrl = `/${finalUrl}`;
         }
 
-        console.log(`[adminApi] Requesting: ${config.method?.toUpperCase()} ${config.url}`); // Log the final URL
+        // 2. Prepend '/api' ONLY if it's not already there
+        // This handles both '/admin/orders' -> '/api/admin/orders'
+        // and '/products' -> '/api/products' correctly, without double prefixing.
+        if (!finalUrl.startsWith('/api/')) {
+            finalUrl = `/api${finalUrl}`;
+        }
 
-        // --- Auth Token Logic (Keep as is) ---
+        config.url = finalUrl; // Assign the corrected URL
+        console.log(`[adminApi] Requesting: ${config.method?.toUpperCase()} ${config.url}`);
+
+        // Add Auth token logic (remains the same)
         const token = localStorage.getItem(STORAGE_KEY);
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         } else {
-             // Log warning only if it's NOT the login request itself
-             if (config.url !== '/api/admin/auth/login') { // Check against the final prefixed URL
+            if (config.url !== '/api/admin/auth/login') {
                  console.warn('[adminApi] No admin token found in localStorage for protected route.');
              }
         }
-        // --- End Auth Token Logic ---
-
         return config;
     },
     (error) => {
@@ -47,16 +51,15 @@ adminApi.interceptors.request.use(
         return Promise.reject(error);
     }
 );
-// --- END CORRECTION ---
+// --- End Correction ---
 
-
-// Response interceptor (Keep your existing detailed one)
+// Response interceptor (keep your existing logic here)
 adminApi.interceptors.response.use(
     (response) => response,
     (error) => {
         console.error("[adminApi] Response Error Status:", error.response?.status);
         console.error("[adminApi] Response Error Data:", error.response?.data);
-        // console.error("[adminApi] Request Config:", error.config); // Optional
+        console.error("[adminApi] Request Config:", error.config);
 
         if (error.code === 'ERR_NETWORK') {
             toast.error('Network Error - Could not reach the admin server. Please check connection.');
@@ -77,13 +80,11 @@ adminApi.interceptors.response.use(
                     }, 1800);
                 } else if (requestUrl === '/api/admin/auth/login') {
                     console.warn('[adminApi] Login attempt failed.');
-                    // Login page should show the error from its own catch block
                 } else {
                      toast.error(`Authentication Error: ${errorMessage}`);
                 }
                 return Promise.reject({ ...error, handled: true });
             }
-
              if (status === 404) {
                  console.error(`[adminApi] Resource not found (404) at: ${requestUrl}`);
              } else if (status === 409) {

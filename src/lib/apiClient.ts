@@ -17,17 +17,22 @@ const apiClient = axios.create({
 // --- CORRECTED Request Interceptor ---
 apiClient.interceptors.request.use(
     (config) => {
-        // Ensure the final path starts with /api (relative to baseURL)
-        // Only add /api if the URL doesn't already start with it.
-        if (config.url && !config.url.startsWith('/api')) {
-            // Ensure we handle leading slash correctly if path is like 'categories' vs '/categories'
-            const path = config.url.startsWith('/') ? config.url : `/${config.url}`;
-            config.url = `/api${path}`;
+        let finalUrl = config.url || '';
+
+        // 1. Ensure URL starts with a slash if it's not empty
+        if (finalUrl && !finalUrl.startsWith('/')) {
+            finalUrl = `/${finalUrl}`;
         }
 
+        // 2. Prepend '/api' ONLY if it's not already there
+        if (!finalUrl.startsWith('/api/')) {
+            finalUrl = `/api${finalUrl}`; // Prepend /api if missing
+        }
+
+        config.url = finalUrl; // Assign the corrected URL
         console.log(`[apiClient] Requesting: ${config.method?.toUpperCase()} ${config.url}`);
 
-        // Example: Add user token if needed
+        // Add user token logic here if needed in the future
         // const userToken = localStorage.getItem('userAuthToken');
         // if (userToken) {
         //     config.headers.Authorization = `Bearer ${userToken}`;
@@ -39,15 +44,15 @@ apiClient.interceptors.request.use(
         return Promise.reject(error);
     }
 );
-// --- END CORRECTION ---
+// --- End Correction ---
 
-// Response interceptor (keep your existing detailed one)
+// Response interceptor (keep your existing logic here)
 apiClient.interceptors.response.use(
     (response) => response,
     (error) => {
          console.error("[apiClient] Response Error Status:", error.response?.status);
          console.error("[apiClient] Response Error Data:", error.response?.data);
-         // console.error("[apiClient] Request Config:", error.config); // Optional: log config on error
+         console.error("[apiClient] Request Config:", error.config);
 
          if (error.code === 'ERR_NETWORK') {
              console.error('[apiClient] Network Error - Server likely unreachable or CORS issue.');
@@ -58,7 +63,6 @@ apiClient.interceptors.response.use(
             const { status, data, config } = error.response;
             const requestUrl = config?.url || 'N/A';
             const errorMessage = data?.message || 'An error occurred on the server.';
-
             switch (status) {
                 case 401:
                     console.warn(`[apiClient] Unauthorized (401) on ${requestUrl}.`);
@@ -91,8 +95,8 @@ apiClient.interceptors.response.use(
                     toast.error(`Error ${status}: ${errorMessage}`);
             }
         } else if (error.request) {
-            console.error('[apiClient] No response received:', error.request);
-            toast.error('No response from server. It might be down or unreachable.');
+             console.error('[apiClient] No response received:', error.request);
+             toast.error('No response from server. It might be down or unreachable.');
         } else {
             console.error('[apiClient] Request Setup Error:', error.message);
             toast.error(`Request Error: ${error.message}`);
