@@ -44,7 +44,7 @@ const AdminCategoryFormPage: React.FC<AdminCategoryFormPageProps> = ({ mode }) =
             setIsFetchingInitialData(true); setError(null);
             const fetchCategory = async () => {
                 try {
-                    const response = await axios.get<Category>(`${API_BASE_URL}/categories/${categoryId}`);
+                    const response = await axios.get<Category>(`${API_BASE_URL}api/categories/${categoryId}`);
                     const cat = response.data;
                     setFormData({
                         id: cat.id || '',

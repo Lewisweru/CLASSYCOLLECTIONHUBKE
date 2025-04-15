@@ -1,13 +1,12 @@
-// CLASSYCOLLECTIONHUBKE/src/lib/adminApi.ts
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
 const STORAGE_KEY = 'admin-auth-token';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001';
-console.log(`[adminApi] Using Base URL: ${API_BASE_URL}`);
+console.log(`[adminApi] Configured Base URL: ${API_BASE_URL}`); // Verify this is WITHOUT /api
 
 const adminApi = axios.create({
-    baseURL: API_BASE_URL, // Base URL without /api
+    // baseURL: API_BASE_URL, // REMOVED baseURL from instance config
     headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -15,35 +14,32 @@ const adminApi = axios.create({
     withCredentials: true
 });
 
-// --- MORE ROBUST Request Interceptor ---
+// --- Interceptor Now Constructs Full URL ---
 adminApi.interceptors.request.use(
     (config) => {
         let relativePath = config.url || '';
         console.log(`[adminApi] Initial relativePath: ${relativePath}`);
 
-        // 1. Remove any leading '/api' or '/' to get the core path
-        if (relativePath.startsWith('/api/')) {
-            relativePath = relativePath.substring(4); // Remove '/api'
-        } else if (relativePath.startsWith('/')) {
-            relativePath = relativePath.substring(1); // Remove leading '/'
+        // Ensure relativePath starts with '/' if not empty
+        if (relativePath && !relativePath.startsWith('/')) {
+            relativePath = `/${relativePath}`;
         }
-         // Now relativePath is like 'admin/orders', 'products', 'admin/categories/xyz' etc.
+        // --> Important: We still expect calls like adminApi.get('/api/admin/orders')
 
-        // 2. Construct the final URL relative to baseURL
-        // Ensure it starts with /api/
-        config.url = `/api/${relativePath}`;
+        // Construct the full URL manually
+        config.url = `${API_BASE_URL}${relativePath}`; // Prepend the BASE_URL
 
-        console.log(`[adminApi] Final Requesting URL (relative): ${config.url}`);
-        console.log(`[adminApi] Full Request URL: ${config.baseURL}${config.url}`);
+        console.log(`[adminApi] Final Full URL: ${config.url}`);
 
         // Add Auth token
         const token = localStorage.getItem(STORAGE_KEY);
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         } else {
-            if (config.url !== '/api/admin/auth/login') {
+            // Only warn if NOT the login request itself
+            if (!config.url.endsWith('/api/admin/auth/login')) { // Check the final URL
                  console.warn('[adminApi] No admin token found in localStorage for protected route.');
-             }
+            }
         }
         return config;
     },
@@ -53,16 +49,16 @@ adminApi.interceptors.request.use(
         return Promise.reject(error);
     }
 );
-// --- End Robust Interceptor ---
+// --- End Interceptor Update ---
 
-// --- UNCHANGED Response Interceptor ---
+// --- Response Interceptor (Keep As Is) ---
 adminApi.interceptors.response.use(
     (response) => response,
-    (error) => {
+    (error) => { /* ... existing response error handling ... */
         console.error("[adminApi] Response Error Status:", error.response?.status);
         console.error("[adminApi] Response Error Data:", error.response?.data);
         console.error("[adminApi] Request Config:", error.config);
-        const requestInfo = `${error.config?.method?.toUpperCase()} ${error.config?.baseURL}${error.config?.url}`;
+        const requestInfo = `${error.config?.method?.toUpperCase()} ${error.config?.url}`; // URL is now absolute
 
         if (error.code === 'ERR_NETWORK') {
             toast.error('Network Error - Could not reach the admin server. Please check connection.');
@@ -92,6 +88,6 @@ adminApi.interceptors.response.use(
         return Promise.reject(error);
     }
 );
-// --- End UNCHANGED Response Interceptor ---
+// --- End Response Interceptor ---
 
 export default adminApi;
