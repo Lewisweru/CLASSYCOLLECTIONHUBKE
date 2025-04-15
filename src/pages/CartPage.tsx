@@ -8,8 +8,12 @@ import apiClient from '../lib/apiClient'; // Uses apiClient
 import toast from 'react-hot-toast';
 
 const deliveryOptions = [
-  { id: 'standard', name: 'Standard Delivery', price: 29900, duration: '3-5 business days' },
-  { id: 'express', name: 'Express Delivery', price: 59900, duration: '1-2 business days' },
+  { id: 'Doorstep', name: 'Doorstep Delivery', price: 30000, duration: '3-5 business days' },
+  { id: 'Mombasa', name: 'Mombasa Pickup Agent(In-Motion Town Branch)', price: 50000, duration: '1-2 business days' },
+  { id: 'Parcel Delivery', name: 'Parcel Delivery', price: 35000, duration: '1-2 business days' },
+  { id: 'Parcelke', name: 'Parcel(THIKA, JUJA, KITENGELA , KIKUYU)', price: 25000, duration: '1-2 business days' },
+  { id: 'Pickup', name: 'pickup mtaani', price: 12000, duration: '1-2 business days' },
+  { id: 'ParcelsEA', name: 'Parcels East Africa', price: 80000, duration: '5-7 business days' },
 ];
 
 export default function CartPage() {
