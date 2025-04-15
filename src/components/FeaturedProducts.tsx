@@ -1,11 +1,10 @@
-// src/components/FeaturedProducts.tsx
 import { useState, useEffect } from 'react';
 import ProductCard from './ProductCard';
 import { Product } from '../types';
-import axios from 'axios';
-import { Skeleton } from './Skeleton'; // Assuming Skeleton component exists
+import apiClient from '../lib/apiClient'; // Import apiClient
+import { Skeleton } from './Skeleton';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
+// Removed API_BASE_URL and direct axios import
 
 export default function FeaturedProducts() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
@@ -17,11 +16,16 @@ export default function FeaturedProducts() {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await axios.get<Product[]>(`${API_BASE_URL}/products?featured=true`);
+        // *** Use apiClient and full relative path ***
+        const response = await apiClient.get<Product[]>('/api/products?featured=true');
+        // *** End Path Correction ***
         setFeaturedProducts(response.data);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to fetch featured products:", err);
-        setError("Could not load featured products.");
+        if (!err.handled) {
+            setError(err.response?.data?.message || "Could not load featured products.");
+            // Toast potentially handled by interceptor
+        }
       } finally {
         setIsLoading(false);
       }
@@ -39,18 +43,13 @@ export default function FeaturedProducts() {
           </p>
         </div>
 
-         {error && <p className="text-center text-red-600 mb-6">{error}</p>}
+         {error && !isLoading && <p className="text-center text-red-600 mb-6">{error}</p>}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {isLoading ? (
-            // Show skeletons while loading
-             Array.from({ length: 3 }).map((_, index) => (
-                <Skeleton key={index} className="aspect-square rounded-lg" />
-             ))
+             Array.from({ length: 3 }).map((_, index) => ( <Skeleton key={index} className="aspect-square rounded-lg" /> ))
           ) : featuredProducts.length > 0 ? (
-             featuredProducts.map((product) => (
-                 <ProductCard key={product.id} product={product} />
-             ))
+             featuredProducts.map((product) => ( <ProductCard key={product.id} product={product} /> ))
           ) : (
               <p className="text-center text-gray-500 sm:col-span-2 lg:col-span-3">No featured products available.</p>
           )}
@@ -59,5 +58,3 @@ export default function FeaturedProducts() {
     </section>
   );
 }
-
-// Remember to create/import the Skeleton component

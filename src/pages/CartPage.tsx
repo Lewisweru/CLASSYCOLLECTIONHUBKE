@@ -1,53 +1,49 @@
 // src/pages/CartPage.tsx
-import React, { useState } from 'react'; // Keep React, useState, FormEvent
-import { Link } from 'react-router-dom'; // Keep Link, remove useNavigate if not used
-import { useCartStore, useCartTotal, useCartItemCount } from '../store/cartStore'; // Import store hooks
-import { Minus, Plus, Trash2, ShoppingBag, Info, Loader2 } from 'lucide-react'; // Keep/Add needed icons
-import { ShippingDetails } from '../types';
-import apiClient from '../lib/apiClient'; // Import the correct API client
-import toast from 'react-hot-toast'; // For feedback
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useCartStore, useCartTotal, useCartItemCount } from '../store/cartStore';
+import { Minus, Plus, Trash2, ShoppingBag, Info, Loader2 } from 'lucide-react';
+import { ShippingDetails, Product } from '../types'; // Assuming Product is needed for item display
+import apiClient from '../lib/apiClient'; // Uses apiClient
+import toast from 'react-hot-toast';
 
 const deliveryOptions = [
-  { id: 'standard', name: 'Standard Delivery', price: 29900, duration: '3-5 business days' }, // Use smallest unit (cents/shillings)
-  { id: 'express', name: 'Express Delivery', price: 59900, duration: '1-2 business days' }, // Use smallest unit
+  { id: 'standard', name: 'Standard Delivery', price: 29900, duration: '3-5 business days' },
+  { id: 'express', name: 'Express Delivery', price: 59900, duration: '1-2 business days' },
 ];
 
 export default function CartPage() {
-  const { items, removeItem, updateQuantity, clearCart } = useCartStore(); // Get clearCart from store
-  const total = useCartTotal(); // Total of items in smallest unit
+  const { items, removeItem, updateQuantity, clearCart } = useCartStore();
+  const total = useCartTotal();
   const itemCount = useCartItemCount();
   const [shippingDetails, setShippingDetails] = useState<ShippingDetails>({
     fullName: '', email: '', phone: '', address: '', city: '', deliveryOption: 'standard'
   });
   const [formErrors, setFormErrors] = useState<Partial<ShippingDetails>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false); // Loading state for submission
-  const [submitError, setSubmitError] = useState<string | null>(null); // State for API submission errors
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // --- Validation Logic ---
   const validateForm = (): boolean => {
       const errors: Partial<ShippingDetails> = {};
       if (!shippingDetails.fullName.trim()) errors.fullName = 'Full Name is required';
       if (!shippingDetails.email.trim()) errors.email = 'Email is required';
       else if (!/\S+@\S+\.\S+/.test(shippingDetails.email)) errors.email = 'Email is invalid';
-      if (!shippingDetails.phone.trim()) errors.phone = 'Phone is required'; // Add phone format validation later
+      if (!shippingDetails.phone.trim()) errors.phone = 'Phone is required';
       if (!shippingDetails.address.trim()) errors.address = 'Address is required';
       if (!shippingDetails.city.trim()) errors.city = 'City is required';
       setFormErrors(errors);
-      // Return true if no errors
       return Object.keys(errors).filter(key => errors[key as keyof ShippingDetails]).length === 0;
   };
 
-  // --- Input Change Handler ---
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
       const { name, value } = e.target;
       setShippingDetails(prev => ({ ...prev, [name]: value }));
       if (formErrors[name as keyof ShippingDetails]) {
-          setFormErrors(prev => ({ ...prev, [name]: undefined })); // Clear specific error
+          setFormErrors(prev => ({ ...prev, [name]: undefined }));
       }
-       setSubmitError(null); // Clear submit error on input change
+       setSubmitError(null);
   };
 
-   // --- Quantity Change Handler ---
    const handleQuantityChange = (id: string, currentQuantity: number, change: number) => {
      const newQuantity = currentQuantity + change;
      if (newQuantity < 1) {
@@ -55,15 +51,13 @@ export default function CartPage() {
          removeItem(id);
        }
      } else {
-       updateQuantity(id, newQuantity); // Update quantity in store
+       updateQuantity(id, newQuantity);
      }
    };
 
-
-  // --- *** CORRECT handleSubmit for API integration *** ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitError(null); // Clear previous submit errors
+    setSubmitError(null);
 
     if (!validateForm()) {
         toast.error("Please fix the errors in the shipping details.");
@@ -83,37 +77,38 @@ export default function CartPage() {
     };
 
     try {
-        const response = await apiClient.post('/orders', orderPayload); // Call backend
+        // *** Use full relative path starting with /api/ ***
+        const response = await apiClient.post('/api/orders', orderPayload);
+        // *** End Path Correction ***
 
         if (response.data && response.data.redirectUrl) {
             toast.success("Redirecting to payment gateway...", { id: toastId });
-            clearCart(); // Clear cart state *before* redirecting
-            window.location.href = response.data.redirectUrl; // Redirect to Pesapal
+            clearCart();
+            window.location.href = response.data.redirectUrl; // Redirect handled here
+            // No need to setIsSubmitting(false) on success if redirecting
         } else {
+            console.error("Invalid server response structure after order POST:", response.data);
             throw new Error(response.data?.message || "Failed to initiate payment (Invalid server response).");
         }
     } catch (err: any) {
         console.error("Order submission error:", err);
-        const errorMsg = err.response?.data?.message || 'Failed to place order. Please try again.';
+        // Error message priority: backend response -> generic message
+        const errorMsg = err.response?.data?.message || err.message || 'Failed to place order. Please try again.';
         toast.error(errorMsg, { id: toastId });
-        setSubmitError(errorMsg); // Set error state to display near button
-        setIsSubmitting(false); // Stop loading only on error
+        setSubmitError(errorMsg);
+        setIsSubmitting(false); // Only stop loading on error
     }
+    // No finally needed here due to redirect on success
   };
-  // --- *** END CORRECT handleSubmit *** ---
-
 
   const selectedDelivery = deliveryOptions.find(opt => opt.id === shippingDetails.deliveryOption);
-  // Delivery price is now also in smallest unit
   const deliveryPriceSmallestUnit = selectedDelivery?.price || 0;
-  // Grand total is sum of smallest units
   const grandTotalSmallestUnit = total + deliveryPriceSmallestUnit;
 
-  // Helper to format price for display (dividing by 100)
    const formatDisplayPrice = (priceInSmallestUnit: number) => {
         return new Intl.NumberFormat('en-KE', {
             style: 'currency', currency: 'KES', minimumFractionDigits: 2, maximumFractionDigits: 2
-        }).format(priceInSmallestUnit / 100); // Convert back to KES for display
+        }).format(priceInSmallestUnit / 100);
     };
 
   return (
@@ -131,18 +126,16 @@ export default function CartPage() {
       ) : (
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
-            {/* Cart Items & Summary */}
             <div className="lg:col-span-2 space-y-8">
-              {/* Item List */}
               <div className="bg-white rounded-lg shadow p-6">
                  <h2 className="text-xl font-semibold mb-4 border-b pb-3">Your Items ({itemCount})</h2>
                   {items.map((item) => (
                       <div key={item.id} className="flex items-start sm:items-center py-5 border-b last:border-b-0 flex-col sm:flex-row">
-                          <img src={item.imageUrl} alt={item.name} className="w-24 h-24 object-cover rounded flex-shrink-0 mb-4 sm:mb-0 sm:mr-5" />
+                           {/* Added check for item.imageUrls and fallback */}
+                           <img src={item.imageUrls?.[0] || 'https://via.placeholder.com/96x96/e2e8f0/94a3b8?text=N/A'} alt={item.name} className="w-24 h-24 object-cover rounded flex-shrink-0 mb-4 sm:mb-0 sm:mr-5 bg-gray-100" />
                           <div className="flex-1 mb-4 sm:mb-0">
                               <Link to={`/product/${item.id}`} className="text-lg font-medium text-gray-900 hover:text-teal-600">{item.name}</Link>
                               <p className="text-gray-500 text-sm">{item.subcategory}</p>
-                              {/* Use formatter */}
                               <p className="text-teal-600 font-semibold mt-1">{formatDisplayPrice(item.price)}</p>
                           </div>
                           <div className="flex items-center space-x-3 ml-auto">
@@ -154,93 +147,26 @@ export default function CartPage() {
                       </div>
                   ))}
               </div>
-              {/* Order Summary */}
               <div className="bg-white rounded-lg shadow p-6">
                   <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
                   <div className="space-y-3">
-                      <div className="flex justify-between text-gray-600">
-                          <span>Subtotal</span>
-                          {/* Use formatter */}
-                          <span>{formatDisplayPrice(total)}</span>
-                      </div>
-                      <div className="flex justify-between text-gray-600">
-                          <span>Delivery ({selectedDelivery?.name})</span>
-                          {/* Use formatter */}
-                          <span>{formatDisplayPrice(deliveryPriceSmallestUnit)}</span>
-                      </div>
-                      <div className="border-t pt-3 mt-3">
-                          <div className="flex justify-between font-semibold text-lg text-gray-900">
-                              <span>Total</span>
-                              {/* Use formatter */}
-                              <span>{formatDisplayPrice(grandTotalSmallestUnit)}</span>
-                          </div>
-                      </div>
+                      <div className="flex justify-between text-gray-600"><span>Subtotal</span><span>{formatDisplayPrice(total)}</span></div>
+                      <div className="flex justify-between text-gray-600"><span>Delivery ({selectedDelivery?.name})</span><span>{formatDisplayPrice(deliveryPriceSmallestUnit)}</span></div>
+                      <div className="border-t pt-3 mt-3"><div className="flex justify-between font-semibold text-lg text-gray-900"><span>Total</span><span>{formatDisplayPrice(grandTotalSmallestUnit)}</span></div></div>
                   </div>
               </div>
             </div>
 
-            {/* Shipping Details */}
             <div className="bg-white rounded-lg shadow p-6 lg:col-span-1 h-fit sticky top-20">
                 <h2 className="text-xl font-semibold mb-5">Shipping Details</h2>
                 <div className="space-y-4">
-                     {/* Form Input Fields */}
-                     <div>
-                         <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
-                         <input id="fullName" type="text" name="fullName" required value={shippingDetails.fullName} onChange={handleInputChange} className={`form-input ${formErrors.fullName ? 'border-red-500' : ''}`}/>
-                         {formErrors.fullName && <p className="form-error">{formErrors.fullName}</p>}
-                     </div>
-                     <div>
-                         <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                         <input id="email" type="email" name="email" required value={shippingDetails.email} onChange={handleInputChange} className={`form-input ${formErrors.email ? 'border-red-500' : ''}`} />
-                         {formErrors.email && <p className="form-error">{formErrors.email}</p>}
-                     </div>
-                     <div>
-                         <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
-                         <input id="phone" type="tel" name="phone" required value={shippingDetails.phone} onChange={handleInputChange} className={`form-input ${formErrors.phone ? 'border-red-500' : ''}`} />
-                         {formErrors.phone && <p className="form-error">{formErrors.phone}</p>}
-                     </div>
-                     <div>
-                         <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">Address *</label>
-                         <input id="address" type="text" name="address" required value={shippingDetails.address} onChange={handleInputChange} className={`form-input ${formErrors.address ? 'border-red-500' : ''}`} />
-                         {formErrors.address && <p className="form-error">{formErrors.address}</p>}
-                     </div>
-                     <div>
-                         <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">City *</label>
-                         <input id="city" type="text" name="city" required value={shippingDetails.city} onChange={handleInputChange} className={`form-input ${formErrors.city ? 'border-red-500' : ''}`} />
-                         {formErrors.city && <p className="form-error">{formErrors.city}</p>}
-                     </div>
-                     <div>
-                         <label htmlFor="deliveryOption" className="block text-sm font-medium text-gray-700 mb-1">Delivery Option</label>
-                         <select id="deliveryOption" name="deliveryOption" value={shippingDetails.deliveryOption} onChange={handleInputChange} className="form-select">
-                             {deliveryOptions.map((option) => (
-                                // Display formatted price in options
-                                <option key={option.id} value={option.id}> {option.name} - {formatDisplayPrice(option.price)} ({option.duration}) </option>
-                             ))}
-                         </select>
-                     </div>
-
-                     {/* Submit Button */}
-                     <div className="mt-6">
-                          {/* Display form validation errors */}
-                         {Object.values(formErrors).some(err => err) && (
-                             <p className="text-sm text-red-600 mb-3 text-center flex items-center justify-center"><Info size={16} className="mr-1"/> Please fix the errors above.</p>
-                         )}
-                         {/* Display API submission errors */}
-                         {submitError && (
-                             <p className="text-sm text-red-600 mb-3 text-center">{submitError}</p>
-                         )}
-                        <button
-                            type="submit"
-                            disabled={isSubmitting || itemCount === 0}
-                            className="w-full bg-teal-600 text-white py-3 px-4 rounded-md font-semibold hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 transition duration-150 ease-in-out disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center"
-                        >
-                            {isSubmitting ? (
-                                <> <Loader2 className="animate-spin h-5 w-5 mr-2" /> Processing... </>
-                            ) : (
-                                'Proceed to Payment'
-                            )}
-                        </button>
-                     </div>
+                     <div><label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label><input id="fullName" type="text" name="fullName" required value={shippingDetails.fullName} onChange={handleInputChange} className={`form-input ${formErrors.fullName ? 'border-red-500' : ''}`}/>{formErrors.fullName && <p className="form-error">{formErrors.fullName}</p>}</div>
+                     <div><label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email *</label><input id="email" type="email" name="email" required value={shippingDetails.email} onChange={handleInputChange} className={`form-input ${formErrors.email ? 'border-red-500' : ''}`} />{formErrors.email && <p className="form-error">{formErrors.email}</p>}</div>
+                     <div><label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">Phone *</label><input id="phone" type="tel" name="phone" required value={shippingDetails.phone} onChange={handleInputChange} className={`form-input ${formErrors.phone ? 'border-red-500' : ''}`} />{formErrors.phone && <p className="form-error">{formErrors.phone}</p>}</div>
+                     <div><label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">Address *</label><input id="address" type="text" name="address" required value={shippingDetails.address} onChange={handleInputChange} className={`form-input ${formErrors.address ? 'border-red-500' : ''}`} />{formErrors.address && <p className="form-error">{formErrors.address}</p>}</div>
+                     <div><label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">City *</label><input id="city" type="text" name="city" required value={shippingDetails.city} onChange={handleInputChange} className={`form-input ${formErrors.city ? 'border-red-500' : ''}`} />{formErrors.city && <p className="form-error">{formErrors.city}</p>}</div>
+                     <div><label htmlFor="deliveryOption" className="block text-sm font-medium text-gray-700 mb-1">Delivery Option</label><select id="deliveryOption" name="deliveryOption" value={shippingDetails.deliveryOption} onChange={handleInputChange} className="form-select">{deliveryOptions.map((option) => ( <option key={option.id} value={option.id}> {option.name} - {formatDisplayPrice(option.price)} ({option.duration}) </option> ))}</select></div>
+                     <div className="mt-6">{Object.values(formErrors).some(err => err) && ( <p className="text-sm text-red-600 mb-3 text-center flex items-center justify-center"><Info size={16} className="mr-1"/> Please fix the errors above.</p> )}{submitError && ( <p className="text-sm text-red-600 mb-3 text-center">{submitError}</p> )}<button type="submit" disabled={isSubmitting || itemCount === 0} className="w-full bg-teal-600 text-white py-3 px-4 rounded-md font-semibold hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 transition duration-150 ease-in-out disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center">{isSubmitting ? ( <> <Loader2 className="animate-spin h-5 w-5 mr-2" /> Processing... </> ) : ( 'Proceed to Payment' )}</button></div>
                 </div>
             </div>
           </div>
@@ -249,12 +175,3 @@ export default function CartPage() {
     </div>
   );
 }
-
-// Add helper styles to index.css if not already done
-/*
-@layer components {
-  .form-input { @apply mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm disabled:bg-gray-100; }
-  .form-select { @apply mt-1 block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-teal-500 focus:outline-none focus:ring-teal-500 sm:text-sm disabled:bg-gray-100; }
-  .form-error { @apply text-xs text-red-600 mt-1; }
-}
-*/
