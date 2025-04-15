@@ -38,7 +38,7 @@ const AdminDashboardPage: React.FC = () => {
              setIsLoadingStats(true); setStatsError(null);
              try {
                 // Fetching product count - consider a dedicated /api/admin/stats endpoint later
-                const productResponse = await adminApi.get('/products'); // Using public route temporarily
+                const productResponse = await adminApi.get('api/products'); // Using public route temporarily
                 setStats({ productCount: Array.isArray(productResponse.data) ? productResponse.data.length : 0 });
             } catch (err: any) {
                  if(!err.handled){
