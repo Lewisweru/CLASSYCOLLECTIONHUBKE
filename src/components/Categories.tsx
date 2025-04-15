@@ -1,11 +1,13 @@
 // src/components/Categories.tsx
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios'; // Import axios
-import { Category } from '../types'; // Use your defined Category type
-import { Skeleton } from './Skeleton'; // Assuming a simple Skeleton component exists
+import apiClient from '../lib/apiClient'; // *** IMPORT apiClient ***
+import { Category } from '../types';
+import { Skeleton } from './Skeleton';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
+// *** REMOVE direct axios import and API_BASE_URL constant ***
+// import axios from 'axios';
+// const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
 
 export default function Categories() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -17,11 +19,16 @@ export default function Categories() {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await axios.get<Category[]>(`${API_BASE_URL}/categories`);
+        // *** FIX: Use apiClient and the correct relative path ***
+        const response = await apiClient.get<Category[]>('/api/categories');
+        // *** END FIX ***
         setCategories(response.data);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to fetch categories:", err);
-        setError("Could not load categories.");
+        // Let the interceptor handle the toast/logging
+        if (!err.handled) { // Set local error state if not handled by interceptor
+            setError(err.response?.data?.message || "Could not load categories.");
+        }
       } finally {
         setIsLoading(false);
       }
@@ -34,7 +41,13 @@ export default function Categories() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center sm:text-left">Shop by Category</h2>
 
-        {error && <p className="text-center text-red-600">{error}</p>}
+        {/* Display error message if fetch failed */}
+        {error && !isLoading && (
+             <div className="text-center text-red-600 mb-6 bg-red-50 p-4 rounded border border-red-200">
+                <p>Could not load categories.</p>
+                {/* Optionally show the error message for debugging: <p className="text-sm">{error}</p> */}
+             </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {isLoading ? (
@@ -42,7 +55,7 @@ export default function Categories() {
             Array.from({ length: 3 }).map((_, index) => (
                <Skeleton key={index} className="aspect-w-3 aspect-h-2 rounded-lg" />
             ))
-          ) : categories.length > 0 ? (
+          ) : !error && categories.length > 0 ? ( // Only render categories if no error and categories exist
              categories.map((category) => (
                 <Link
                   key={category.id}
@@ -52,11 +65,10 @@ export default function Categories() {
                 >
                   <div className="aspect-w-3 aspect-h-2">
                     <img
-                      // Use fallback image if imageUrl is null/missing
                       src={category.imageUrl || 'https://via.placeholder.com/400x267/e2e8f0/94a3b8?text=No+Image'}
                       alt={category.name}
-                      loading="lazy" // Lazy load images
-                      className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-300 bg-gray-200" // Added bg color
+                      loading="lazy"
+                      className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-300 bg-gray-200"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent" />
                   </div>
@@ -73,17 +85,11 @@ export default function Categories() {
                   </div>
                 </Link>
               ))
-          ) : (
+          ) : !error && categories.length === 0 && !isLoading ? ( // Only show "No categories" if loading is done and no error
              <p className="text-center text-gray-500 md:col-span-2 lg:col-span-3">No categories found.</p>
-          )}
+          ) : null /* Don't render anything if there was an error and isLoading is false */ }
         </div>
       </div>
     </section>
   );
 }
-
-// Add a simple Skeleton component (e.g., src/components/Skeleton.tsx)
-// export const Skeleton = ({ className }: { className?: string }) => (
-//   <div className={`bg-gray-200 rounded animate-pulse ${className}`}></div>
-// );
-// Remember to create and export this or use a library.
