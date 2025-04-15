@@ -1,14 +1,15 @@
 // src/pages/SavedItemsPage.tsx
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+// Use the public API client for this public page feature
+import apiClient from '../lib/apiClient'; // Corrected import
 import { useSavedItemsStore } from '../store/savedItemsStore';
 import ProductCard from '../components/ProductCard';
 import { HeartOff } from 'lucide-react';
 import { Product } from '../types';
 import { Skeleton } from '../components/Skeleton';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
+// No need for API_BASE_URL here if using apiClient
 
 export default function SavedItemsPage() {
   const { savedItemIds } = useSavedItemsStore(); // Get the list of IDs
@@ -27,25 +28,19 @@ export default function SavedItemsPage() {
       setIsLoading(true);
       setError(null);
       try {
-        // Option 1: Fetch products one by one (simpler, less efficient for many items)
-        // const productPromises = savedItemIds.map(id =>
-        //   axios.get<Product>(`${API_BASE_URL}/products/${id}`)
-        // );
-        // const responses = await Promise.allSettled(productPromises);
-        // const fetchedProducts = responses
-        //   .filter(result => result.status === 'fulfilled')
-        //   .map(result => (result as PromiseFulfilledResult<axios.AxiosResponse<Product>>).value.data);
-        // setSavedProducts(fetchedProducts);
+        // --- Use the new batch endpoint ---
+        const response = await apiClient.get<Product[]>('/products/batch', {
+            params: {
+                ids: savedItemIds.join(',') // Send IDs as comma-separated string
+            }
+        });
+        // Ensure the response data is an array before setting state
+        setSavedProducts(Array.isArray(response.data) ? response.data : []);
 
-        // Option 2: Fetch all products and filter (simpler for now, inefficient for large catalogs)
-        // In a real app, backend should support GET /api/products?ids=id1,id2,id3
-        const response = await axios.get<Product[]>(`${API_BASE_URL}/products`);
-        const allProducts = response.data;
-        setSavedProducts(allProducts.filter(p => savedItemIds.includes(p.id)));
-
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to fetch saved products:", err);
-        setError("Could not load saved items details.");
+        const errorMsg = err.response?.data?.message || 'Could not load saved items details.';
+        setError(errorMsg);
         setSavedProducts([]);
       } finally {
         setIsLoading(false);
@@ -55,13 +50,14 @@ export default function SavedItemsPage() {
     fetchSavedProducts();
   }, [savedItemIds]); // Refetch when the list of saved IDs changes
 
+  // Rest of the component remains the same...
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Saved Items ({savedItemIds.length})</h1>
 
       {isLoading && (
          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-              {Array.from({ length: savedItemIds.length || 4 }).map((_, index) => ( // Show skeletons based on saved count or default
+              {Array.from({ length: savedItemIds.length || 4 }).map((_, index) => (
                   <Skeleton key={index} className="aspect-square rounded-lg" />
               ))}
           </div>
@@ -69,7 +65,18 @@ export default function SavedItemsPage() {
 
        {error && !isLoading && <p className="text-center text-red-600 my-8">{error}</p>}
 
-      {!isLoading && !error && savedProducts.length === 0 ? (
+      {!isLoading && !error && savedProducts.length === 0 && savedItemIds.length > 0 ? (
+           // This case handles when savedItemIds exist but fetching failed or returned empty
+           <div className="text-center py-12 bg-white rounded-lg shadow">
+               <HeartOff className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+               <p className="text-xl text-gray-600 mb-2">Could not load your saved items.</p>
+               <p className="text-gray-500 mb-6">Please try again later or contact support.</p>
+               <Link to="/" className="bg-teal-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-teal-700 transition-colors"> Continue Shopping </Link>
+           </div>
+       ) : null}
+
+      {!isLoading && !error && savedProducts.length === 0 && savedItemIds.length === 0 ? (
+        // This case handles when there are genuinely no saved items
         <div className="text-center py-12 bg-white rounded-lg shadow">
           <HeartOff className="h-16 w-16 mx-auto text-gray-400 mb-4" />
           <p className="text-xl text-gray-600 mb-2">You haven't saved any items yet.</p>

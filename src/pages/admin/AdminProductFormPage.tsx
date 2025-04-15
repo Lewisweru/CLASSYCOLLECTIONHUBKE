@@ -1,198 +1,220 @@
 // src/pages/admin/AdminProductFormPage.tsx
-import React, { useState, useEffect, FormEvent } from 'react';
+import React, { useState, useEffect, FormEvent, ChangeEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { BarLoader } from 'react-spinners';
-import { Save, ChevronLeft, AlertCircle } from 'lucide-react';
+import { Save, ChevronLeft, AlertCircle, PlusCircle, Trash2 } from 'lucide-react';
 import adminApi from '../../lib/adminApi';
-import { Product, Category } from '../../types'; // Use your frontend types
+import { Product as ProductType, Category } from '../../types';
+import { z } from 'zod'; // Import Zod
 
-interface AdminProductFormPageProps {
-    mode: 'create' | 'edit';
-}
+interface AdminProductFormPageProps { mode: 'create' | 'edit'; }
 
 interface ProductFormData {
     name: string;
     price: string;
     description: string;
-    imageUrl: string;
-    categoryId: string; // <-- Should always store the STRING ID
+    imageUrls: string[];
+    categoryId: string;
     subcategory: string;
     featured: boolean;
     rating: string;
     reviews: string;
 }
 
+const MAX_IMAGES = 5;
+
+const productFormSchema = z.object({
+    name: z.string().min(1, { message: "Name is required" }),
+    price: z.string().regex(/^\d+$/, "Price must be a whole number").min(1, { message: "Price is required" }).transform(Number),
+    description: z.string().min(1, { message: "Description is required" }),
+    imageUrls: z.array(z.string().url({ message: "Each image URL must be valid" }).min(1, { message: "Image URL cannot be empty" }))
+                  .min(1, { message: "At least one image URL is required" })
+                  .max(MAX_IMAGES, { message: `A maximum of ${MAX_IMAGES} image URLs are allowed` }),
+    categoryId: z.string().min(1, { message: "Category is required" }),
+    subcategory: z.string().min(1, { message: "Subcategory is required" }),
+    featured: z.boolean(),
+    rating: z.string().regex(/^(?:[0-4](\.\d+)?|5(\.0+)?)$/, "Rating must be between 0.0 and 5.0").transform(Number),
+    // Corrected validation for reviews - ensure it's treated as string initially then transformed
+    reviews: z.string().regex(/^\d+$/, "Reviews must be a non-negative whole number")
+              .min(1, { message: "Reviews count is required"}) // Ensure min length for string check
+              .transform(Number) // Transform to number AFTER string validation
+});
+
+
 const AdminProductFormPage: React.FC<AdminProductFormPageProps> = ({ mode }) => {
     const { productId } = useParams<{ productId?: string }>();
     const navigate = useNavigate();
     const isEditMode = mode === 'edit';
 
-    const [formData, setFormData] = useState<ProductFormData>({ /* ... initial state ... */
-        name: '', price: '', description: '', imageUrl: '', categoryId: '',
-        subcategory: '', featured: false, rating: '0', reviews: '0',
+    const [formData, setFormData] = useState<ProductFormData>({
+        name: '', price: '', description: '', imageUrls: [''],
+        categoryId: '', subcategory: '', featured: false, rating: '0.0', reviews: '0',
     });
     const [categories, setCategories] = useState<Category[]>([]);
-    const [isLoading, setIsLoading] = useState(false); // For form submission/initial load in edit
-    const [isFetchingInitialData, setIsFetchingInitialData] = useState(true); // Separate state for initial data load
+    const [isLoading, setIsLoading] = useState(false);
+    const [isFetchingInitialData, setIsFetchingInitialData] = useState(isEditMode);
     const [error, setError] = useState<string | null>(null);
+    // Explicitly type the possible structure from Zod's flatten()
+    const [formErrors, setFormErrors] = useState<Partial<Record<keyof ProductFormData | '_errors', string | string[] | undefined>>>({});
 
-    // --- Fetch Categories (runs on mount) ---
+
+    // --- Fetch Categories ---
     useEffect(() => {
         const fetchCategories = async () => {
             try {
                 const response = await adminApi.get<Category[]>('/categories');
                 setCategories(response.data);
-                // Set default category ONLY if creating and categories exist
                 if (!isEditMode && response.data.length > 0 && !formData.categoryId) {
                     setFormData(prev => ({ ...prev, categoryId: response.data[0].id }));
                 }
-            } catch (err) {
-                console.error("Failed to fetch categories:", err);
-                toast.error("Could not load categories for dropdown.");
-                // Consider setting an error state specific to categories if needed
-            }
+            } catch (err) { console.error("Failed fetch categories:", err); toast.error("Could not load categories."); }
         };
         fetchCategories();
-        // Intentionally not fetching product here, handled by separate effect
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isEditMode]); // Run only once essentially, unless mode changes (unlikely)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isEditMode]);
 
-
-    // --- Fetch Product Data (only in edit mode) ---
+    // --- Fetch Product Data ---
     useEffect(() => {
-        // Only run if in edit mode AND productId is present
         if (isEditMode && productId) {
-            setIsFetchingInitialData(true);
-            setError(null);
+            setIsFetchingInitialData(true); setError(null); setFormErrors({});
             const fetchProduct = async () => {
-                try {
-                    const response = await adminApi.get<Product>(`/products/${productId}`);
+                 try {
+                    const response = await adminApi.get<ProductType>(`/products/${productId}`);
                     const product = response.data;
-                    // Ensure product.category exists and has an id before setting
                     const fetchedCategoryId = typeof product.category === 'object' ? product.category.id : product.category;
-
                     setFormData({
-                        name: product.name,
-                        price: product.price.toString(),
-                        description: product.description,
-                        imageUrl: product.imageUrl,
-                        categoryId: fetchedCategoryId || '', // Use fetched category ID
-                        subcategory: product.subcategory,
-                        featured: product.featured,
-                        rating: product.rating.toString(),
-                        reviews: product.reviews.toString(),
+                        name: product.name, price: product.price.toString(), description: product.description,
+                        imageUrls: Array.isArray(product.imageUrls) && product.imageUrls.length > 0 ? product.imageUrls : [''],
+                        categoryId: fetchedCategoryId || '', subcategory: product.subcategory, featured: product.featured,
+                        rating: product.rating.toString(), reviews: product.reviews.toString(),
                     });
-                } catch (err: any) {
-                    console.error("Failed to fetch product data:", err);
-                    setError(err.response?.data?.message || 'Failed to load product data.');
-                    toast.error("Could not load product data.");
-                } finally {
-                    setIsFetchingInitialData(false);
-                }
+                } catch (err: any) { console.error("Failed fetch product:", err); setError(err.response?.data?.message || 'Failed load product.'); toast.error("Could not load product data."); }
+                 finally { setIsFetchingInitialData(false); }
             };
             fetchProduct();
         } else {
-            // If in create mode, we are done fetching initial data (just categories)
             setIsFetchingInitialData(false);
         }
-    }, [isEditMode, productId]); // Dependency array is correct
+    }, [isEditMode, productId]);
 
+    // --- Handle Image URL Array Change ---
+    const handleImageUrlChange = (index: number, value: string) => {
+        const newImageUrls = [...formData.imageUrls];
+        newImageUrls[index] = value;
+        setFormData(prev => ({ ...prev, imageUrls: newImageUrls }));
+        setFormErrors(prev => ({ ...prev, imageUrls: undefined, _errors: undefined })); // Clear array and form errors
+        setError(null);
+    };
 
-    // --- Form Input Handler ---
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const addImageUrlInput = () => {
+        if (formData.imageUrls.length < MAX_IMAGES) {
+            setFormData(prev => ({ ...prev, imageUrls: [...prev.imageUrls, ''] }));
+        } else {
+            toast.error(`Maximum of ${MAX_IMAGES} images allowed.`);
+        }
+    };
+
+    const removeImageUrlInput = (index: number) => {
+        if (formData.imageUrls.length > 1) {
+            const newImageUrls = formData.imageUrls.filter((_, i) => i !== index);
+            setFormData(prev => ({ ...prev, imageUrls: newImageUrls }));
+            setFormErrors(prev => ({ ...prev, imageUrls: undefined, _errors: undefined }));
+        } else {
+             toast.error("At least one image URL is required.");
+        }
+    };
+
+    // --- Generic Form Input Handler ---
+    const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value, type } = e.target;
-        setError(null); // Clear error on input change
+        setError(null);
+        setFormErrors(prev => ({...prev, [name]: undefined }));
 
         if (type === 'checkbox') {
              const { checked } = e.target as HTMLInputElement;
              setFormData(prev => ({ ...prev, [name]: checked }));
         } else {
-            // For select, e.target.value is directly the option's value (the ID string)
             setFormData(prev => ({ ...prev, [name]: value }));
         }
     };
 
-
     // --- Form Submit Handler ---
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
-        setError(null); // Clear previous submit errors
-        setIsLoading(true); // For submission process
-        const toastId = toast.loading(isEditMode ? 'Updating product...' : 'Creating product...');
+        setError(null); setIsLoading(true); setFormErrors({});
+        const toastId = toast.loading(isEditMode ? 'Updating...' : 'Creating...');
 
-        // --- Validation ---
-        if (!formData.name || !formData.price || !formData.description || !formData.imageUrl || !formData.categoryId || !formData.subcategory) {
-            const errorMsg = 'Please fill in all required fields (Name, Price, Description, Image URL, Category, Subcategory).';
-            setError(errorMsg); toast.error(errorMsg, { id: toastId }); setIsLoading(false); return;
-        }
-        const priceNum = parseInt(formData.price, 10); // Use parseInt for integer price
-        const ratingNum = parseFloat(formData.rating);
-        const reviewsNum = parseInt(formData.reviews, 10);
-        if (isNaN(priceNum) || priceNum < 0 || isNaN(ratingNum) || ratingNum < 0 || ratingNum > 5 || isNaN(reviewsNum) || reviewsNum < 0) {
-            const errorMsg = 'Invalid number format/value for Price (>=0), Rating (0-5), or Reviews (>=0).';
-            setError(errorMsg); toast.error(errorMsg, { id: toastId }); setIsLoading(false); return;
-        }
-        // --- End Validation ---
-
-        // --- Construct Payload ---
-        // Ensure categoryId is definitely a string here
-        const productPayload = {
-            name: formData.name,
-            price: priceNum, // Send the number
-            description: formData.description,
-            imageUrl: formData.imageUrl,
-            categoryId: formData.categoryId, // Should be the string ID from state
-            subcategory: formData.subcategory,
-            featured: formData.featured,
-            rating: ratingNum,
-            reviews: reviewsNum,
+        const dataToValidate = {
+            ...formData,
+            imageUrls: formData.imageUrls.filter(url => url.trim() !== '')
         };
 
-        // --- DEBUGGING: Log the payload right before sending ---
-        console.log('Submitting Product Payload:', productPayload);
-        console.log('categoryId type:', typeof productPayload.categoryId, 'value:', productPayload.categoryId);
-        // --- End Debugging ---
+        const validationResult = productFormSchema.safeParse(dataToValidate);
+
+        if (!validationResult.success) {
+            const flatErrors = validationResult.error.flatten();
+            const formattedErrors: typeof formErrors = {}; // Use the same type as state
+
+            // Process field errors
+            Object.entries(flatErrors.fieldErrors).forEach(([key, value]) => {
+                if(value){
+                    formattedErrors[key as keyof ProductFormData] = value; // Keep array for imageUrls, first item for others
+                }
+            });
+            // Assign form errors to _errors key
+            if (flatErrors.formErrors.length > 0) {
+                formattedErrors._errors = flatErrors.formErrors;
+            }
+
+            console.log("Validation Errors:", formattedErrors);
+            setFormErrors(formattedErrors);
+            setError("Please fix the errors highlighted below.");
+            toast.error("Validation failed. Check form.", { id: toastId });
+            setIsLoading(false);
+            return;
+        }
+
+        const productPayload = validationResult.data;
+        console.log('Submitting Payload:', productPayload);
 
         try {
             if (isEditMode && productId) {
-                // PUT request for editing
-                await adminApi.put(`/products/${productId}`, productPayload);
-                toast.success('Product updated successfully!', { id: toastId });
+                await adminApi.put(`/admin/products/${productId}`, productPayload);
+                toast.success('Product updated!', { id: toastId });
             } else {
-                // POST request for creating
-                await adminApi.post('/products', productPayload);
-                toast.success('Product created successfully!', { id: toastId });
+                await adminApi.post('/admin/products', productPayload);
+                toast.success('Product created!', { id: toastId });
             }
-            navigate('/admin/products'); // Go back to list after success
-
+            navigate('/admin/products');
         } catch (err: any) {
-            console.error("Failed to save product:", err);
-            // Log the detailed error response if available
-            console.error("Error Response:", err.response?.data);
-            const errorMsg = err.response?.data?.message || `Failed to ${isEditMode ? 'update' : 'create'} product. Check console for details.`;
-            setError(errorMsg); // Display error message on the form
-            toast.error(errorMsg, { id: toastId });
+            console.error("Failed save product:", err);
+             if (!err.handled) {
+                 const errorMsg = err.response?.data?.message || `Failed to ${isEditMode ? 'update' : 'create'} product.`;
+                 setError(errorMsg);
+                 toast.error(errorMsg, { id: toastId });
+             } else {
+                  toast.dismiss(toastId);
+             }
         } finally {
-            setIsLoading(false); // Finish submission loading state
+            setIsLoading(false);
         }
     };
 
     // --- Render Loading/Error for Initial Data ---
     if (isFetchingInitialData) {
-         return ( /* ... Skeleton or Loader ... */
-             <div className="flex justify-center py-10">
-                  <BarLoader color="#14B8A6" height={4} width={100} />
-              </div>
-         );
+         return <div className="flex justify-center py-10"><BarLoader color="#14B8A6" height={4} width={100} /></div>;
     }
-    // Show error if initial product fetch failed in edit mode
-     if (error && isEditMode && !isLoading) { // Use initial load error state
-          return ( /* ... Error UI ... */
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-                  <strong className="font-bold mr-2">Error:</strong>
-                  <span className="block sm:inline">{error}</span>
-                   <Link to="/admin/products" className="block mt-4 text-sm text-teal-600 hover:text-teal-800"> ← Back to Product List </Link>
+     if (error && isEditMode && formData.name === '') {
+          return (
+              <div className="max-w-xl mx-auto p-6 md:p-8">
+                   <Link to="/admin/products" className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 mb-4">
+                       <ChevronLeft className="h-4 w-4 mr-1" /> Back to Products
+                   </Link>
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative flex items-center" role="alert">
+                       <AlertCircle className="h-5 w-5 mr-2 text-red-500 flex-shrink-0"/>
+                      <div><strong className="font-bold mr-2">Error:</strong>{error}</div>
+                  </div>
               </div>
           );
      }
@@ -208,63 +230,117 @@ const AdminProductFormPage: React.FC<AdminProductFormPageProps> = ({ mode }) => 
             </h1>
 
             <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-md space-y-5">
-                {/* Display Submission Errors */}
-                {error && !isLoading && ( // Only show submit errors when not loading
-                     <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded relative text-sm flex items-center" role="alert">
+                 {/* General Submission Error */}
+                 {error && !isLoading && (
+                     <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded text-sm flex items-center" role="alert">
                          <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0"/>
                          <div><strong className="font-bold mr-1">Error:</strong> {error}</div>
                      </div>
-                )}
+                 )}
 
-                {/* Form Fields */}
+                {/* Name */}
                 <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
-                    <input type="text" id="name" name="name" value={formData.name} onChange={handleInputChange} required className="form-input" />
+                    <label htmlFor="name" className="form-label">Name *</label>
+                    <input type="text" id="name" name="name" value={formData.name} onChange={handleInputChange} required className={`form-input ${formErrors.name ? 'border-red-500' : ''}`} />
+                    {formErrors.name && typeof formErrors.name === 'string' && <p className="form-error">{formErrors.name}</p>}
                 </div>
 
+                {/* Price & Category */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">Price (Smallest Unit, e.g., 2499) *</label>
-                        {/* Use text type to avoid browser number input issues, validate as number */}
-                        <input type="text" inputMode="numeric" pattern="[0-9]*" id="price" name="price" value={formData.price} onChange={handleInputChange} required className="form-input" />
+                        <label htmlFor="price" className="form-label">Price (Smallest Unit, e.g., 2499) *</label>
+                        <input type="text" inputMode="numeric" pattern="[0-9]*" id="price" name="price" value={formData.price} onChange={handleInputChange} required className={`form-input ${formErrors.price ? 'border-red-500' : ''}`} />
+                         {formErrors.price && typeof formErrors.price === 'string' && <p className="form-error">{formErrors.price}</p>}
                     </div>
                      <div>
-                         <label htmlFor="categoryId" className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
-                         <select id="categoryId" name="categoryId" value={formData.categoryId} onChange={handleInputChange} required className="form-select disabled:bg-gray-100" disabled={categories.length === 0}>
-                             <option value="" disabled={categories.length > 0}>
-                                 {categories.length === 0 ? 'Loading Categories...' : 'Select Category'}
-                             </option>
-                             {categories.map(cat => (
-                                 <option key={cat.id} value={cat.id}>{cat.name}</option>
-                             ))}
+                         <label htmlFor="categoryId" className="form-label">Category *</label>
+                         <select id="categoryId" name="categoryId" value={formData.categoryId} onChange={handleInputChange} required className={`form-select disabled:bg-gray-100 ${formErrors.categoryId ? 'border-red-500' : ''}`} disabled={categories.length === 0}>
+                             <option value="" disabled>{categories.length === 0 ? 'Loading...' : 'Select Category'}</option>
+                             {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                          </select>
+                         {formErrors.categoryId && typeof formErrors.categoryId === 'string' && <p className="form-error">{formErrors.categoryId}</p>}
                      </div>
                 </div>
 
+                 {/* Subcategory */}
                  <div>
-                     <label htmlFor="subcategory" className="block text-sm font-medium text-gray-700 mb-1">Subcategory *</label>
-                     <input type="text" id="subcategory" name="subcategory" value={formData.subcategory} onChange={handleInputChange} required className="form-input" />
+                     <label htmlFor="subcategory" className="form-label">Subcategory *</label>
+                     <input type="text" id="subcategory" name="subcategory" value={formData.subcategory} onChange={handleInputChange} required className={`form-input ${formErrors.subcategory ? 'border-red-500' : ''}`} />
+                     {formErrors.subcategory && typeof formErrors.subcategory === 'string' && <p className="form-error">{formErrors.subcategory}</p>}
                  </div>
 
+                 {/* Description */}
                  <div>
-                     <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
-                     <textarea id="description" name="description" value={formData.description} onChange={handleInputChange} required rows={4} className="form-textarea"></textarea>
+                     <label htmlFor="description" className="form-label">Description *</label>
+                     <textarea id="description" name="description" value={formData.description} onChange={handleInputChange} required rows={4} className={`form-textarea ${formErrors.description ? 'border-red-500' : ''}`}></textarea>
+                      {formErrors.description && typeof formErrors.description === 'string' && <p className="form-error">{formErrors.description}</p>}
                  </div>
 
+                 {/* --- Image URLs Section --- */}
                  <div>
-                     <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700 mb-1">Image URL *</label>
-                     <input type="url" id="imageUrl" name="imageUrl" value={formData.imageUrl} onChange={handleInputChange} required className="form-input" placeholder="https://..."/>
-                     {formData.imageUrl && <img src={formData.imageUrl} alt="Preview" className="mt-2 h-20 w-20 object-cover rounded border"/>}
-                 </div>
+                    <label className="form-label">Image URLs (Min 1, Max {MAX_IMAGES}) *</label>
+                    {/* Display general array-level errors */}
+                    {/* --- FIX for displaying general form errors related to the array --- */}
+                    {Array.isArray(formErrors._errors) && formErrors._errors.length > 0 && (
+                         <p className="form-error mb-1">{formErrors._errors.join('. ')}</p>
+                     )}
+                    {/* --- End FIX --- */}
+                    {/* Display general string error for the array itself if Zod puts it there */}
+                     {typeof formErrors.imageUrls === 'string' && (
+                         <p className="form-error mb-1">{formErrors.imageUrls}</p>
+                     )}
 
+
+                    <div className="space-y-2">
+                        {formData.imageUrls.map((url, index) => (
+                            <div key={index}>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="url"
+                                        value={url}
+                                        onChange={(e) => handleImageUrlChange(index, e.target.value)}
+                                        required={index === 0}
+                                        className={`form-input flex-grow ${Array.isArray(formErrors.imageUrls) && formErrors.imageUrls[index] ? 'border-red-500' : ''}`}
+                                        placeholder={`https://... Image ${index + 1}`}
+                                    />
+                                    <button type="button" onClick={() => removeImageUrlInput(index)} disabled={formData.imageUrls.length <= 1} className="p-2 text-red-500 hover:bg-red-100 rounded-full disabled:opacity-50 disabled:cursor-not-allowed" aria-label="Remove Image URL" >
+                                        <Trash2 className="h-4 w-4" />
+                                    </button>
+                                </div>
+                                {/* Display specific URL error message */}
+                                {Array.isArray(formErrors.imageUrls) && formErrors.imageUrls[index] && (
+                                    <p className="form-error text-xs ml-1 mt-1">{formErrors.imageUrls[index]}</p>
+                                )}
+                            </div>
+                        ))}
+                         {/* Add Button */}
+                         {formData.imageUrls.length < MAX_IMAGES && (
+                             <button type="button" onClick={addImageUrlInput} className="mt-2 inline-flex items-center px-3 py-1 border border-dashed border-gray-400 rounded text-sm font-medium text-gray-600 hover:bg-gray-50" >
+                                 <PlusCircle className="h-4 w-4 mr-1" /> Add Another Image URL
+                             </button>
+                         )}
+                    </div>
+                     {/* Image Previews */}
+                     <div className="mt-3 flex flex-wrap gap-2">
+                         {formData.imageUrls.filter(url => url?.trim()).map((url, index) => (
+                             <img key={`preview-${index}`} src={url} alt={`Preview ${index + 1}`} className="h-16 w-16 object-cover rounded border" onError={(e) => (e.target as HTMLImageElement).style.display='none'} onLoad={(e) => (e.target as HTMLImageElement).style.display='inline-block'}/>
+                         ))}
+                     </div>
+                </div>
+                {/* --- End Image URLs Section --- */}
+
+
+                 {/* Rating, Reviews, Featured */}
                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                        <label htmlFor="rating" className="block text-sm font-medium text-gray-700 mb-1">Rating (0.0-5.0)</label>
-                        <input type="text" inputMode="decimal" id="rating" name="rating" value={formData.rating} onChange={handleInputChange} className="form-input" />
+                        <label htmlFor="rating" className="form-label">Rating (0.0-5.0)</label>
+                        <input type="text" inputMode="decimal" id="rating" name="rating" value={formData.rating} onChange={handleInputChange} className={`form-input ${formErrors.rating ? 'border-red-500' : ''}`} />
+                        {formErrors.rating && typeof formErrors.rating === 'string' && <p className="form-error">{formErrors.rating}</p>}
                     </div>
                     <div>
-                        <label htmlFor="reviews" className="block text-sm font-medium text-gray-700 mb-1">Reviews Count</label>
-                        <input type="text" inputMode="numeric" pattern="[0-9]*" id="reviews" name="reviews" value={formData.reviews} onChange={handleInputChange} className="form-input" />
+                        <label htmlFor="reviews" className="form-label">Reviews Count *</label>
+                        <input type="text" inputMode="numeric" pattern="[0-9]*" id="reviews" name="reviews" value={formData.reviews} onChange={handleInputChange} required className={`form-input ${formErrors.reviews ? 'border-red-500' : ''}`} />
+                         {formErrors.reviews && typeof formErrors.reviews === 'string' && <p className="form-error">{formErrors.reviews}</p>}
                     </div>
                      <div className="flex items-center pt-6">
                          <input type="checkbox" id="featured" name="featured" checked={formData.featured} onChange={handleInputChange} className="form-checkbox" />
@@ -277,11 +353,7 @@ const AdminProductFormPage: React.FC<AdminProductFormPageProps> = ({ mode }) => 
                     <Link to="/admin/products" className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
                          Cancel
                     </Link>
-                    <button
-                        type="submit"
-                        disabled={isLoading}
-                        className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:opacity-70 disabled:cursor-not-allowed btn-click-effect"
-                    >
+                    <button type="submit" disabled={isLoading} className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:opacity-70 disabled:cursor-not-allowed btn-click-effect" >
                        {isLoading ? <BarLoader color="#fff" height={4} width={30} /> : <Save className="h-4 w-4 mr-2 inline-block" />}
                         {isEditMode ? 'Save Changes' : 'Create Product'}
                     </button>

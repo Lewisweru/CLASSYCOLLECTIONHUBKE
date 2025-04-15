@@ -1,4 +1,4 @@
-// src/types.ts (Example Adjustment)
+// src/types.ts
 
 export interface CategoryBasic { // Basic info often included
   id: string;
@@ -9,11 +9,13 @@ export interface Product {
   id: string;
   name: string;
   price: number; // Stored as smallest unit (integer)
-  // categoryId: string; // No longer need this directly if category object is included
-  category: CategoryBasic; // Now potentially an object returned by API
+  category: CategoryBasic; // Still expect category object from API
   subcategory: string;
   description: string;
-  imageUrl: string;
+  // --- CHANGE START ---
+  // imageUrl: string; // REMOVE THIS OLD FIELD
+  imageUrls: string[]; // ADD THIS NEW FIELD (array of strings)
+  // --- CHANGE END ---
   rating: number;
   reviews: number;
   featured: boolean;
@@ -25,11 +27,11 @@ export interface CartItem extends Product {
   quantity: number;
 }
 
-// Full Category type might still be used for the Category page itself
+// Full Category type (no changes needed here)
 export interface Category {
   id: string;
   name: string;
-  icon?: string | null; // Make optional fields nullable if DB allows
+  icon?: string | null;
   imageUrl?: string | null;
   description?: string | null;
   subcategories: string[];
@@ -37,7 +39,7 @@ export interface Category {
   updatedAt?: string;
 }
 
-// ... rest of your types (Testimonial, DeliveryOption, ShippingDetails)
+// Testimonial Type (if used, keep as is)
 export interface Testimonial {
   id: string;
   name: string;
@@ -47,18 +49,20 @@ export interface Testimonial {
   rating: number;
 }
 
+// DeliveryOption Type (keep as is)
 export interface DeliveryOption {
   id: string;
   name: string;
-  price: number;
+  price: number; // Smallest unit
   duration: string;
 }
 
+// ShippingDetails Type (keep as is)
 export interface ShippingDetails {
   fullName: string;
   email: string;
   phone: string;
   address: string;
   city: string;
-  deliveryOption: string;
+  deliveryOption: string; // 'standard' or 'express'
 }
