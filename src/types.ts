@@ -66,3 +66,33 @@ export interface ShippingDetails {
   city: string;
   deliveryOption: string; // 'standard' or 'express'
 }
+
+
+export interface OrderItem {
+  id: string;
+  quantity: number;
+  price: number; // Price AT THE TIME OF ORDER (Smallest unit)
+  orderId: string;
+  productId: string;
+  // Include product details if your backend sends them nested
+  product?: Pick<Product, 'id' | 'name' | 'imageUrls' | 'subcategory'>; // Use Pick<> for specific fields
+}
+
+export interface Order {
+  id: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  shippingAddress: string;
+  shippingCity: string;
+  deliveryOption: string;
+  totalAmount: number; // Smallest unit
+  currency: string;
+  status: string; // Consider using a union type: 'PENDING' | 'PAID' | 'FAILED' etc.
+  merchantReference: string;
+  orderTrackingId?: string | null;
+  paymentMethod?: string | null;
+  createdAt?: string; // ISO Date string
+  updatedAt?: string; // ISO Date string
+  items: OrderItem[]; // Array of OrderItem
+}
