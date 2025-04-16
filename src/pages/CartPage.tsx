@@ -23,7 +23,7 @@ export default function CartPage() {
   const total = useCartTotal();
   const itemCount = useCartItemCount();
   const [shippingDetails, setShippingDetails] = useState<ShippingDetails>({
-    fullName: '', email: '', phone: '', address: '', city: '', deliveryOption: 'standard'
+    fullName: '', email: '', phone: '', address: '', city: '', deliveryOption: 'town'
   });
   const [formErrors, setFormErrors] = useState<Partial<ShippingDetails>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
