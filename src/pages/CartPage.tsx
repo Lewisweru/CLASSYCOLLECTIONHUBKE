@@ -8,8 +8,10 @@ import apiClient from '../lib/apiClient'; // Uses apiClient
 import toast from 'react-hot-toast';
 
 const deliveryOptions = [
+  { id: 'town', name: 'Nairobi town', price: 10000, duration: '1-business day' },
+  { id: 'test', name: 'To be removed', price: 1000, duration: 'Testing' },
   { id: 'Doorstep', name: 'Doorstep Delivery', price: 30000, duration: '3-5 business days' },
-  { id: 'Mombasa', name: 'Mombasa Pickup Agent(In-Motion Town Branch)', price: 50000, duration: '1-2 business days' },
+  { id: 'Mombasa', name: 'Mombasa Pickup Agent(In-Motion Town Branch)', price: 5000, duration: '1-2 business days' },
   { id: 'Parcel Delivery', name: 'Parcel Delivery', price: 35000, duration: '1-2 business days' },
   { id: 'Parcelke', name: 'Parcel(THIKA, JUJA, KITENGELA , KIKUYU)', price: 25000, duration: '1-2 business days' },
   { id: 'Pickup', name: 'pickup mtaani', price: 12000, duration: '1-2 business days' },
