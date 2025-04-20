@@ -32,33 +32,16 @@ function HomePage() {
 }
 
 function PublicLayoutWrapper() {
-    const location = useLocation();
-    return (
-        <div className="min-h-screen flex flex-col bg-gray-50 relative"> {/* Added relative positioning */}
-            <Navbar />
-            <main className="flex-grow fade-in" key={location.pathname}>
-                 <Routes>
-                     <Route path="/" element={<HomePage />} />
-                     <Route path="/shop" element={<AllProductsPage />} />
-                     <Route path="/category/:categoryId" element={<CategoryPage />} />
-                     <Route path="/product/:productId" element={<ProductDetailPage />} />
-                     <Route path="/cart" element={<CartPage />} />
-                     <Route path="/saved-items" element={<SavedItemsPage />} />
-                     <Route path="/search" element={<SearchPage />} />
-                     <Route path="/order-confirmation" element={<OrderConfirmationPage />} />
-                      {/* *** Add About and Contact Routes *** */}
-                      <Route path="/about" element={<AboutUsPage />} />
-                      <Route path="/contact" element={<ContactUsPage />} />
-                      {/* Add FAQ route if needed */}
-                     <Route path="*" element={<div className='text-center p-10'>Public 404: Page Not Found</div>} />
-                 </Routes>
-            </main>
-             {/* *** Add Floating WhatsApp Button *** */}
-             <FloatingWhatsApp />
-             {/* *** End Floating Button *** */}
-            <Footer />
-        </div>
-    );
+  const location = useLocation();
+  return (
+      // Add overflow-hidden here to prevent anything inside from causing horizontal scroll
+      <div className="min-h-screen flex flex-col bg-gray-50 relative overflow-hidden">
+          <Navbar />
+          {/* ... main content ... */}
+          <FloatingWhatsApp />
+          <Footer />
+      </div>
+  );
 }
 
 function AdminRoutesWrapper() { /* ... admin routes ... */
