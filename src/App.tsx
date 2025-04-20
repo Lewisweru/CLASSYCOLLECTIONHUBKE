@@ -14,7 +14,21 @@ import AdminOrderDetailPage from './pages/admin/AdminOrderDetailPage';
 // *** End Import ***
 
 
-function HomePage() { return ( <main><Hero /><Categories /><FeaturedProducts /><TrustBadges /><Newsletter /></main> ); }
+function HomePage() {
+  return (
+    <main>
+      <Hero />
+      {/* --- Wrap Categories component to hide on mobile --- */}
+      <div className="hidden md:block"> {/* Tailwind: hidden by default, block from 'md' breakpoint up */}
+        <Categories />
+      </div>
+      {/* --- End Wrapper --- */}
+      <FeaturedProducts />
+      <TrustBadges />
+      <Newsletter />
+    </main>
+ );
+}
 
 function PublicLayoutWrapper() {
     const location = useLocation();
