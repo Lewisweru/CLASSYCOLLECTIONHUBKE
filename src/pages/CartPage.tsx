@@ -3,13 +3,13 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCartStore, useCartTotal, useCartItemCount } from '../store/cartStore';
 import { Minus, Plus, Trash2, ShoppingBag, Info, Loader2 } from 'lucide-react';
-import { ShippingDetails, Product } from '../types'; // Assuming Product is needed for item display
+import { ShippingDetails } from '../types'; // Assuming Product is needed for item display
 import apiClient from '../lib/apiClient'; // Uses apiClient
 import toast from 'react-hot-toast';
 
 const deliveryOptions = [
   { id: 'town', name: 'Nairobi town', price: 10000, duration: '1-business day' },
-  { id: 'test', name: 'To be removed', price: 1000, duration: 'Testing' },
+  { id: 'test', name: 'Testing', price: 100, duration: 'Testing' },
   { id: 'Doorstep', name: 'Doorstep Delivery', price: 30000, duration: '3-5 business days' },
   { id: 'Mombasa', name: 'Mombasa Pickup Agent(In-Motion Town Branch)', price: 5000, duration: '1-2 business days' },
   { id: 'Parcel Delivery', name: 'Parcel Delivery', price: 35000, duration: '1-2 business days' },
