@@ -69,8 +69,7 @@ function PublicLayoutWrapper() {
                      <Route path="/shop" element={<AllProductsPage />} />
                      <Route path="/about" element={<AboutUsPage />} />
                      <Route path="/contact" element={<ContactUsPage />} />
-                     {/* Add FAQ route here if you create the page */}
-                     {/* <Route path="/faq" element={<FAQPage />} /> */}
+                     <Route path="/faq" element={<Faqs />} /> 
                      <Route path="/category/:categoryId" element={<CategoryPage />} />
                      <Route path="/product/:productId" element={<ProductDetailPage />} />
                      <Route path="/cart" element={<CartPage />} />
