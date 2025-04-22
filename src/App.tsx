@@ -23,6 +23,7 @@ import OrderConfirmationPage from './pages/OrderConfirmationPage';
 import AllProductsPage from './pages/AllProductsPage';
 import AboutUsPage from './pages/AboutUsPage';
 import ContactUsPage from './pages/ContactUsPage';
+import Faqs from './pages/faqs';
 
 // Admin Components
 import AdminLoginPage from './pages/admin/AdminLoginPage';
