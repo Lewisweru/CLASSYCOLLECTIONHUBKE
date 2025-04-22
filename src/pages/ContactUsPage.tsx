@@ -106,7 +106,7 @@ const ContactUsPage: React.FC = () => {
               <Mail className="h-6 w-6 text-teal-600 mt-1 flex-shrink-0" />
               <div>
                 <h3 className="font-medium text-gray-800">Email</h3>
-                <a href="mailto:classycollectionh@gmail.com" className="text-gray-600 hover:text-teal-700 hover:underline">info@classycollectionhub.co.ke</a>
+                <a href="mailto:classycollectionh@gmail.com" className="text-gray-600 hover:text-teal-700 hover:underline">classycollectionh@gmail.com</a>
               </div>
             </div>
 
