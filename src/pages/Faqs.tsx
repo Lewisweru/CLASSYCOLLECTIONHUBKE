@@ -1,4 +1,3 @@
-import React from "react";
 import { Accordion, AccordionItem } from "@radix-ui/react-accordion";
 import { motion } from "framer-motion";
 

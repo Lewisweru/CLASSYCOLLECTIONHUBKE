@@ -27,7 +27,7 @@ export default function Navbar() {
   const [isShopDropdownOpenDesktop, setIsShopDropdownOpenDesktop] = useState(false);
   const [isCategorySubmenuOpenMobile, setIsCategorySubmenuOpenMobile] = useState(false); // For mobile category toggle
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
-  const desktopDropdownTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const desktopDropdownTimeoutRef = useRef<number | null>(null); // Use number type for browser setTimeout ID
   // --- End State ---
 
   // --- Fetch Categories ---

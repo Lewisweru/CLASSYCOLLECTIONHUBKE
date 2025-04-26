@@ -20,9 +20,9 @@ export default function Footer() {
             <h3 className="text-lg font-semibold text-white mb-4">ClassyCollectionHub</h3> <p className="text-sm mb-5 leading-relaxed"> Your destination for quality home essentials, stylish apparel, and thoughtful gifts delivered across Kenya. </p> <div className="flex space-x-5"> {socialLinks.map((link) => ( <a key={link.name} href={link.url} target="_blank" rel="noopener noreferrer" aria-label={link.ariaLabel} className="transition-opacity duration-200 hover:opacity-80"> <link.icon className={`h-6 w-6 ${link.colorClass} ${link.hoverColorClass} transition-colors duration-200`} /> </a> ))} </div>
           </div>
 
-          {/* Quick Links */}
-          <div> {/* ... content ... */}
-            <h3 className="text-lg font-semibold text-white mb-4">Quick Links</h3> <ul className="space-y-2 text-sm"> <li><Link to="/" className="hover:text-white hover:underline">Home</Link></li> <li><Link to="/cart" className="hover:text-white hover:underline">Cart</Link></li> <li><Link to="/saved-items" className="hover:text-white hover:underline">Saved Items</Link></li> <li><Link to="/#terms" className="hover:text-white hover:underline">Terms of Service</Link></li> <li><Link to="/#privacy" className="hover:text-white hover:underline">Privacy Policy</Link></li> </ul>
+          
+          <div> 
+            <h3 className="text-lg font-semibold text-white mb-4">Quick Links</h3> <ul className="space-y-2 text-sm"> <li><Link to="/" className="hover:text-white hover:underline">Home</Link></li> <li><Link to="/cart" className="hover:text-white hover:underline">Cart</Link></li> <li><Link to="/saved-items" className="hover:text-white hover:underline">Saved Items</Link></li> <li><Link to="/terms-of-service" className="hover:text-white hover:underline">Terms of Service</Link></li> <li><Link to="/privacy-policy" className="hover:text-white hover:underline">Privacy Policy</Link></li> </ul>
            </div>
 
           {/* Contact/Newsletter */}

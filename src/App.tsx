@@ -24,6 +24,8 @@ import AllProductsPage from './pages/AllProductsPage';
 import AboutUsPage from './pages/AboutUsPage';
 import ContactUsPage from './pages/ContactUsPage';
 import Faqs from './pages/Faqs';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import TermsOfServicePage from './pages/TermsOfServicePage';
 
 // Admin Components
 import AdminLoginPage from './pages/admin/AdminLoginPage';
@@ -74,6 +76,8 @@ function PublicLayoutWrapper() {
                      <Route path="/product/:productId" element={<ProductDetailPage />} />
                      <Route path="/cart" element={<CartPage />} />
                      <Route path="/saved-items" element={<SavedItemsPage />} />
+                     <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+                     <Route path="/terms-of-service" element={<TermsOfServicePage />} />
                      <Route path="/search" element={<SearchPage />} />
                      <Route path="/order-confirmation" element={<OrderConfirmationPage />} />
                      {/* Catch-all 404 for public routes */}
